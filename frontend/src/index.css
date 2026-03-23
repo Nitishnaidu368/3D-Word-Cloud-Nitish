@@ -1,0 +1,132 @@
+:root {
+  --bg-0: #02050d;
+  --bg-1: #081327;
+  --panel: rgba(10, 16, 30, 0.72);
+  --panel-border: rgba(123, 168, 255, 0.25);
+  --text-main: #ecf4ff;
+  --text-soft: #9fb4d6;
+  --accent: #44d2ff;
+  --error: #ff7a7a;
+  --shadow: 0 24px 60px rgba(3, 7, 17, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+  color: var(--text-main);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 78% 16%, rgba(73, 117, 255, 0.3), transparent 40%),
+    radial-gradient(circle at 14% 22%, rgba(56, 212, 246, 0.22), transparent 32%),
+    linear-gradient(135deg, var(--bg-0), var(--bg-1));
+}
+
+#root {
+  width: min(1120px, 100% - 2rem);
+  margin: 1.3rem auto;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 1rem;
+  min-height: calc(100vh - 2.6rem);
+}
+
+.panel {
+  padding: 1.25rem;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+}
+
+.eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  font-size: 0.76rem;
+}
+
+h1 {
+  margin: 0.35rem 0 0.8rem;
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
+  line-height: 1.04;
+}
+
+.description {
+  margin: 0 0 1rem;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.controls {
+  display: grid;
+  gap: 0.7rem;
+}
+
+input,
+button {
+  border: 0;
+  border-radius: 11px;
+  padding: 0.78rem 0.9rem;
+  font: inherit;
+}
+
+input {
+  background: rgba(6, 11, 21, 0.8);
+  border: 1px solid rgba(154, 184, 229, 0.35);
+  color: var(--text-main);
+}
+
+button {
+  background: linear-gradient(135deg, #00a6d6, #4d6fff);
+  color: #f7fdff;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.66;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 0.85rem 0 0;
+  color: var(--error);
+}
+
+.scene-wrap {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+}
+
+.scene-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: calc(100vh - 2.6rem);
+}
+
+@media (max-width: 930px) {
+  #root {
+    width: min(1120px, 100% - 1rem);
+    margin: 0.5rem auto;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - 1rem);
+  }
+
+  .scene-wrap canvas {
+    min-height: 55vh;
+  }
+}
