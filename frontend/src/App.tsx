@@ -8,6 +8,14 @@ type WordData = {
   weight: number
 }
 
+type AnalyzeApiResponse = {
+  words: WordData[]
+}
+
+type ApiErrorResponse = {
+  detail?: string
+}
+
 const SAMPLE_URLS = [
   'https://www.bbc.com/news',
   'https://www.reuters.com/world/',
@@ -74,25 +82,47 @@ function WordCluster({ words }: { words: WordData[] }) {
 }
 
 function App() {
+  const apiBaseUrl =
+    (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+    'http://127.0.0.1:8000'
   const [url, setUrl] = useState(SAMPLE_URLS[0])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [words] = useState<WordData[]>(MOCK_WORDS)
+  const [words, setWords] = useState<WordData[]>(MOCK_WORDS)
 
   const handleAnalyze = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      // API wiring will be added in the backend integration commit.
-      await new Promise((resolve) => setTimeout(resolve, 700))
-
       if (!url.startsWith('http')) {
         throw new Error('Please enter a valid article URL.')
       }
+
+      const response = await fetch(`${apiBaseUrl}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      })
+
+      if (!response.ok) {
+        const errorPayload = (await response.json()) as ApiErrorResponse
+        throw new Error(errorPayload.detail ?? 'Analysis request failed')
+      }
+
+      const payload = (await response.json()) as AnalyzeApiResponse
+
+      if (!payload.words || payload.words.length === 0) {
+        throw new Error('No keywords were returned for this article.')
+      }
+
+      setWords(payload.words)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error'
       setError(message)
+      setWords(MOCK_WORDS)
     } finally {
       setLoading(false)
     }
@@ -128,6 +158,7 @@ function App() {
         </div>
 
         {error && <p className="error">{error}</p>}
+        {!error && !loading && <p className="result-info">Loaded {words.length} topics.</p>}
       </header>
 
       <section className="scene-wrap">

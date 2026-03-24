@@ -102,6 +102,12 @@ button:disabled {
   color: var(--error);
 }
 
+.result-info {
+  margin: 0.85rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
 .scene-wrap {
   border-radius: 18px;
   overflow: hidden;
