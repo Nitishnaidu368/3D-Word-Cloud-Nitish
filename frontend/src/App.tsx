@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Float, OrbitControls, Text } from '@react-three/drei'
+import { Float, OrbitControls, Sparkles, Stars, Text } from '@react-three/drei'
 import { useMemo, useRef, useState } from 'react'
-import type { Group } from 'three'
+import type { Group, Mesh } from 'three'
 
 type WordData = {
   word: string
@@ -32,14 +32,53 @@ const MOCK_WORDS: WordData[] = [
   { word: 'global', weight: 0.52 },
 ]
 
-function WordCluster({ words }: { words: WordData[] }) {
+function HaloRings() {
+  const outerRing = useRef<Mesh | null>(null)
+  const innerRing = useRef<Mesh | null>(null)
+
+  useFrame((_state, delta) => {
+    if (outerRing.current) {
+      outerRing.current.rotation.z += delta * 0.12
+      outerRing.current.rotation.x += delta * 0.05
+    }
+
+    if (innerRing.current) {
+      innerRing.current.rotation.z -= delta * 0.18
+      innerRing.current.rotation.y += delta * 0.09
+    }
+  })
+
+  return (
+    <>
+      <mesh ref={outerRing} rotation={[Math.PI / 2.6, 0, 0]}>
+        <torusGeometry args={[4.6, 0.04, 12, 200]} />
+        <meshStandardMaterial color="#4bc5ff" emissive="#1b5da6" emissiveIntensity={0.7} />
+      </mesh>
+      <mesh ref={innerRing} rotation={[Math.PI / 3.5, Math.PI / 4, 0]}>
+        <torusGeometry args={[3.3, 0.03, 12, 160]} />
+        <meshStandardMaterial color="#82ffe9" emissive="#17655b" emissiveIntensity={0.5} />
+      </mesh>
+    </>
+  )
+}
+
+function WordCluster({
+  words,
+  activeWord,
+  onWordHover,
+}: {
+  words: WordData[]
+  activeWord: string | null
+  onWordHover: (word: WordData | null) => void
+}) {
   const cloudRef = useRef<Group | null>(null)
   const positions = useMemo(
     () =>
       words.map((_, index) => {
-        const phi = Math.acos(-1 + (2 * index) / words.length)
-        const theta = Math.sqrt(words.length * Math.PI) * phi
-        const radius = 3.2 + (index % 3) * 0.5
+        const ratio = index / words.length
+        const phi = Math.acos(1 - 2 * ratio)
+        const theta = Math.sqrt(words.length * Math.PI * 2) * phi
+        const radius = 2.9 + (index % 5) * 0.45
 
         return [
           radius * Math.cos(theta) * Math.sin(phi),
@@ -63,15 +102,25 @@ function WordCluster({ words }: { words: WordData[] }) {
         <Float
           key={entry.word}
           speed={1 + entry.weight}
-          rotationIntensity={0.2}
-          floatIntensity={0.6}
+          rotationIntensity={0.35}
+          floatIntensity={0.9}
         >
           <Text
             position={positions[index]}
-            fontSize={0.35 + entry.weight * 0.55}
+            fontSize={0.3 + entry.weight * 0.72}
             color={`hsl(${205 - index * 10}, 76%, ${56 + entry.weight * 18}%)`}
             anchorX="center"
             anchorY="middle"
+            onPointerOver={(event) => {
+              event.stopPropagation()
+              onWordHover(entry)
+              document.body.style.cursor = 'pointer'
+            }}
+            onPointerOut={() => {
+              onWordHover(null)
+              document.body.style.cursor = 'default'
+            }}
+            scale={activeWord === entry.word ? 1.2 : 1}
           >
             {entry.word}
           </Text>
@@ -89,6 +138,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [words, setWords] = useState<WordData[]>(MOCK_WORDS)
+  const [activeWord, setActiveWord] = useState<WordData | null>(null)
 
   const handleAnalyze = async () => {
     setLoading(true)
@@ -119,10 +169,12 @@ function App() {
       }
 
       setWords(payload.words)
+      setActiveWord(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error'
       setError(message)
       setWords(MOCK_WORDS)
+      setActiveWord(null)
     } finally {
       setLoading(false)
     }
@@ -159,15 +211,38 @@ function App() {
 
         {error && <p className="error">{error}</p>}
         {!error && !loading && <p className="result-info">Loaded {words.length} topics.</p>}
+
+        <div className="active-word-card">
+          <p className="active-label">Selected Topic</p>
+          <p className="active-word">{activeWord?.word ?? 'Hover a word in the cloud'}</p>
+          <p className="active-score">
+            Relevance: {activeWord ? `${Math.round(activeWord.weight * 100)}%` : '--'}
+          </p>
+        </div>
       </header>
 
       <section className="scene-wrap">
         <Canvas camera={{ position: [0, 0, 9], fov: 55 }}>
           <color attach="background" args={['#050813']} />
-          <ambientLight intensity={0.8} />
-          <directionalLight position={[2, 3, 4]} intensity={1.4} />
-          <WordCluster words={words} />
-          <OrbitControls enablePan={false} maxDistance={12} minDistance={6} />
+          <fog attach="fog" args={['#050813', 8, 19]} />
+          <ambientLight intensity={0.7} />
+          <directionalLight position={[2, 3, 4]} intensity={1.5} />
+          <pointLight position={[-4, -1, 2]} intensity={1.2} color="#5ec8ff" />
+          <Stars radius={80} depth={40} count={2200} factor={5} saturation={0.2} fade speed={0.55} />
+          <Sparkles count={90} scale={10} size={2.6} speed={0.35} color="#66d9ff" />
+          <HaloRings />
+          <WordCluster
+            words={words}
+            activeWord={activeWord?.word ?? null}
+            onWordHover={setActiveWord}
+          />
+          <OrbitControls
+            enablePan={false}
+            maxDistance={12}
+            minDistance={6}
+            autoRotate
+            autoRotateSpeed={0.4}
+          />
         </Canvas>
       </section>
     </div>

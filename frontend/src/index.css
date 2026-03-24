@@ -108,11 +108,34 @@ button:disabled {
   font-size: 0.92rem;
 }
 
+.active-word-card {
+  margin-top: 1rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(6, 16, 32, 0.75);
+  border: 1px solid rgba(124, 187, 255, 0.26);
+}
+
+.active-label,
+.active-score {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+}
+
+.active-word {
+  margin: 0.3rem 0;
+  font-size: 1.08rem;
+  color: #dff7ff;
+  letter-spacing: 0.01em;
+}
+
 .scene-wrap {
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid var(--panel-border);
   box-shadow: var(--shadow);
+  animation: panel-enter 800ms ease;
 }
 
 .scene-wrap canvas {
@@ -134,5 +157,17 @@ button:disabled {
 
   .scene-wrap canvas {
     min-height: 55vh;
+  }
+}
+
+@keyframes panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
