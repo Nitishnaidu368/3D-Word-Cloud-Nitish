@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -35,14 +35,31 @@ class AnalyzeResponse(BaseModel):
 
 def fetch_article_text(url: str) -> str:
     """Fetch and extract text content from a URL."""
+    def fetch_via_reader_proxy(target_url: str) -> str:
+        """Fallback fetch via reader proxy for anti-bot protected pages."""
+        parsed = urlparse(target_url)
+        host_path = f"{parsed.netloc}{parsed.path}"
+        if parsed.query:
+            host_path = f"{host_path}?{parsed.query}"
+
+        proxy_url = f"https://r.jina.ai/http://{host_path}"
+        proxy_response = requests.get(proxy_url, timeout=20)
+        proxy_response.raise_for_status()
+        return proxy_response.text
+
     try:
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36"
-            )
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
         }
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, "html.parser")
@@ -53,14 +70,29 @@ def fetch_article_text(url: str) -> str:
 
         # Extract text from paragraphs and common content tags
         text_parts = []
-        for tag in soup.find_all(["p", "article", "main", "div"]):
+        for tag in soup.find_all(["article", "main", "p", "h2", "li", "div"]):
             text = tag.get_text(strip=True)
             if len(text) > 20:
                 text_parts.append(text)
 
-        return " ".join(text_parts)
-    except requests.RequestException as e:
-        raise ValueError(f"Failed to fetch URL: {str(e)}")
+        extracted = " ".join(text_parts)
+
+        # If direct scraping gives too little content, use fallback reader proxy.
+        if len(extracted.split()) < 120:
+            extracted = fetch_via_reader_proxy(url)
+
+        if len(extracted.split()) < 50:
+            raise ValueError("Unable to extract enough readable text from this URL")
+
+        return extracted
+    except requests.RequestException:
+        try:
+            extracted = fetch_via_reader_proxy(url)
+            if len(extracted.split()) < 50:
+                raise ValueError("Unable to extract enough readable text from this URL")
+            return extracted
+        except requests.RequestException as proxy_error:
+            raise ValueError(f"Failed to fetch URL: {str(proxy_error)}")
 
 
 def clean_text(text: str) -> str:
@@ -86,9 +118,19 @@ def extract_keywords(text: str, n_keywords: int = 15) -> list[WordEntry]:
     if not text or len(text.split()) < 5:
         raise ValueError("Text too short for analysis")
 
-    # Split into sentences for better context
+    # Split into segments for better context. If punctuation is limited,
+    # fall back to fixed-size token chunks so TF-IDF has multiple documents.
     sentences = text.split(".")
     sentences = [s.strip() for s in sentences if len(s.strip().split()) > 3]
+
+    if len(sentences) < 2:
+        tokens = text.split()
+        chunk_size = 80
+        sentences = [
+            " ".join(tokens[i : i + chunk_size])
+            for i in range(0, len(tokens), chunk_size)
+            if len(tokens[i : i + chunk_size]) > 8
+        ]
 
     if not sentences:
         raise ValueError("No valid content found")
@@ -97,7 +139,7 @@ def extract_keywords(text: str, n_keywords: int = 15) -> list[WordEntry]:
     vectorizer = TfidfVectorizer(
         max_features=50,
         min_df=1,
-        max_df=0.8,
+        max_df=1.0,
         stop_words="english",
         ngram_range=(1, 2),
     )
